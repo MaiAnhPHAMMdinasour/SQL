@@ -1,0 +1,351 @@
+---
+title: "Examen SQL"
+author: "Mai-Anh PHAM"
+date: "2023-02-02"
+output: 
+  html_document :
+    toc : true
+    toc_depth : 4
+    toc_float : true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+**Charger le package sqldf**
+```{r}
+library(sqldf)
+```
+
+# PARTIE 1 : Video Game Sales
+
+## Télécharger le jeu de données
+
+```{r}
+url <- paste0("https://raw.githubusercontent.com/ArthurData/data/main/vgsales/")
+games <- read.csv(paste0(url, "games.csv"), sep=",", na.strings = "")
+platforms <- read.csv(paste0(url, "platforms.csv"), sep=",", na.strings = "")
+```
+
+### Games
+**Afficher 5 premières lignes des données "games"**
+```{r}
+head(games)
+```
+
+
+**Informations sur les colonnes**
+
+- ID : identifiant du jeu
+- Name : Nom du jeu
+- Platform_id : Identifiant de la plateforme
+- Year : Année de sortie
+- Genre : Type de jeu
+- Publisher : Éditeur
+- NA_Sales : Ventes aux États-Unis
+- EU_Sales : Ventes en Europe
+- JP_Sales : Ventes au Japon
+- Other_Sales : Ventes dans le reste du monde
+- Total_Sales : Ventes totales
+- Dans le dataframe games, une ligne = un jeu vidéo.
+
+### Platforms
+**Afficher 5 premières lignes des données "platform"**
+```{r}
+head(platforms)
+```
+
+**Informations sur les colonnes**
+
+- ID : Identifiant de la plateforme
+- Name : Nom de la plateforme
+
+## Questions
+
+### Question 1
+**Calculer la somme des ventes en Europe et la moyenne des ventes au Japon.**
+
+```{r}
+#Somme des ventes en Europe
+sqldf("SELECT SUM(EU_sales) AS Somme_Ventes_Europe FROM games")
+```
+```{r}
+#Moyenne des ventes au Japon
+sqldf("SELECT AVG(JP_sales) AS Moyenne_Ventes_Japon FROM games")
+```
+
+### Question 2
+**Sélectionner tous les jeux ayant réalisé plus de 10M de ventes aux États-Unis.**
+
+```{r}
+sqldf("SELECT Name AS Nom_du_jeu, NA_Sales AS Ventes_aux_États_Unis FROM games WHERE NA_Sales > 10")
+```
+
+### Question 3
+**Sélectionner tous les jeux créés entre 2000 et 2003 et dont le Publisher est Ubisoft.**
+
+```{r}
+sqldf("SELECT Name AS Nom_du_jeu, Year AS Année_de_sortie, Publisher AS Editeur FROM games 
+WHERE Year BETWEEN 2000 AND 2003 
+AND Publisher = 'Ubisoft'
+ORDER BY YEAR ASC")
+```
+
+### Question 4
+**Sélectionner les jeux dont le Publisher est manquant.**
+
+```{r}
+sqldf("SELECT Name AS Nom_du_jeu, Publisher AS Editeur FROM games 
+WHERE Publisher is NULL")
+```
+
+### Question 5
+**Sélectionner les jeux avec le Publisher « Nintendo » dont les ventes en Europe sont supérieures à 10M ou les jeux du publisher « Sony Computer Entertainment » dont les ventes au Japon sont supérieures à 3M.**
+
+```{r}
+sqldf("SELECT Name AS Nom_du_jeu, Publisher AS Editeur, 
+EU_Sales AS Ventes_Europe, JP_Sales AS Ventes_Japon FROM games 
+WHERE Publisher = 'Nintendo' AND EU_Sales > 10
+OR Publisher = 'Sony Computer Entertainment' AND JP_Sales > 3
+ORDER BY Publisher ASC")
+```
+
+### Question 6
+**Combien de jeux contiennent le mot « Mario » dans le titre ?**
+
+```{r}
+sqldf("SELECT SUM(Name LIKE '%%Mario%%') AS Somme_Mario FROM games")
+```
+
+### Question 7
+**Sélectionner tous les jeux du genre : Sports, Action, Simulation et qui ont entre 4M et 8M de vente aux États-Unis.**
+
+```{r}
+sqldf("SELECT Name AS Nom_du_jeu, Genre AS Type_du_jeu, NA_Sales AS Ventes_Etats_Unis FROM games 
+WHERE Genre IN ('Sports','Action','Simulation') 
+AND NA_Sales BETWEEN 4 AND 8
+ORDER BY Genre ASC")
+```
+
+### Question 8
+**Parmi les jeux qui contiennent « FIFA » dans le titre, quel est celui qui a réalisé le plus de ventes en Europe.**
+
+```{r}
+sqldf("SELECT Name AS Nom_du_jeu, EU_Sales AS Ventes_Europe FROM games 
+WHERE Name LIKE '%%FIFA%%' 
+ORDER BY EU_Sales DESC
+LIMIT 1")
+```
+
+### Question 9
+**Calculer la somme des ventes au Japon et en Europe par Publisher.**
+```{r}
+sqldf("SELECT Publisher AS Editeur, 
+SUM(EU_sales) AS Somme_Europe,
+SUM(JP_sales) AS Somme_Japon FROM games 
+GROUP BY Publisher
+ORDER BY SUM(EU_Sales) DESC")
+
+```
+
+### Question 10
+**Créer une nouvelle colonne nommée « gender2 » qui contient :**
+
+- « Jeu de course » si le genre est « Racing »
+- « Jeu de rôle » si le genre est « Role-Playing »
+- « Jeu de combat » si le genre est « Action », « Simulation » et « Fighting »
+- « Autres types » pour les autres genres
+
+Calculer la moyenne des ventes au Japon avec la nouvelle catégorie de jeu « gender2 ».
+
+
+```{r}
+sqldf("SELECT AVG(JP_sales) AS Moyenne_Japon,
+CASE 
+  WHEN Genre = 'Racing' THEN 'Jeu de course'
+  WHEN Genre = 'Role-Playing' THEN 'Jeu de rôle'
+  WHEN Genre in ('Action', 'Simulation', 'Fighting') THEN 'Jeu de combat'
+  ELSE 'Autres types'
+END AS gender2
+FROM games
+GROUP BY gender2")
+```
+
+### Question 11
+**Créer une nouvelle colonne nommée « BestSellers » qui contient :**
+
+- « Pokémon » si le titre contient « Pokemon »
+- « Mario » si le titre contient « Mario »
+- « Call of Duty » si le titre contient « Call of Duty »
+
+Parmi les bestsellers, quelle est la somme des ventes aux États-Unis ? Conserver les bestsellers avec plus 100M de ventes.
+```{r}
+#Somme de ventes aux Etats-Unis
+sqldf("SELECT SUM(NA_sales) AS Somme_Etats_Unis,
+CASE 
+  WHEN Name LIKE '%%Pokemon%%' THEN 'Pokémon'
+  WHEN Name LIKE '%%Mario%%' THEN 'Mario'
+  WHEN Name LIKE '%%Call of Duty%%' THEN 'Call of Duty'
+END AS BestSellers
+FROM games
+WHERE BestSellers IS NOT NULL
+GROUP BY BestSellers")
+```
+```{r}
+#Conserver les bestsellers avec > 100M ventes aux Etats-Unis
+sqldf("SELECT SUM(NA_sales) AS Somme_Etats_Unis,
+CASE 
+  WHEN Name LIKE '%%Pokemon%%' THEN 'Pokémon'
+  WHEN Name LIKE '%%Mario%%' THEN 'Mario'
+  WHEN Name LIKE '%%Call of Duty%%' THEN 'Call of Duty'
+END AS BestSellers
+FROM games
+WHERE BestSellers IS NOT NULL
+GROUP BY BestSellers 
+HAVING SUM(NA_sales) > 100")
+```
+
+### Question 12
+**Quels sont les plateformes qui ont généré le plus de ventes totales ? Conserver uniquement les 3 premiers.**
+```{r}
+sqldf("SELECT platforms.Name AS Platforme, SUM(Total_sales) AS Ventes_modiales FROM platforms 
+  INNER JOIN games
+  ON platforms.ID = games.Platform_id 
+  GROUP BY platforms.Name
+  ORDER BY SUM(Total_Sales) DESC
+  LIMIT 3")
+```
+
+### Question 13
+**Quelle est l’année de première parution d’un jeu par plateforme. Trier les jeux, des plus anciens, aux plus récents.**
+```{r}
+sqldf("SELECT platforms.Name AS Platforme, games.Name AS Jeu, MIN(Year) AS Année
+  FROM platforms 
+  INNER JOIN games
+  ON platforms.ID = games.Platform_id 
+  GROUP BY platforms.Name
+  ORDER BY Year ASC")
+```
+=> 1980 est l’année de première parution d’un jeu par plateforme (Asteroids). La plateforme la plus nouvelle sont PS4 et XOne en 2013 
+
+### Question 14
+**Calculer les ventes totales par plateforme. Afficher le nom de la platforme et conserver celles entre 100M et 300M de ventes, ou celles avec plus de 1000M de ventes.**
+```{r}
+sqldf("SELECT platforms.Name AS Platforme, SUM(Total_sales) AS Ventes_modiales FROM platforms 
+  INNER JOIN games
+  ON platforms.ID = games.Platform_id 
+  GROUP BY platforms.Name
+  HAVING SUM(Total_sales) BETWEEN 100 and 300 
+  OR SUM(Total_sales) > 1000
+  ORDER BY SUM(Total_sales) ASC")
+```
+
+# PARTIE 2 : Moovies
+## Télécharger le jeu de données
+
+```{r}
+url <- paste0("https://raw.githubusercontent.com/ArthurData/data/main/moovies/")
+moovies <- read.csv(paste0(url, "moovies.csv"), sep=",", na.strings = "")
+categories <- read.csv(paste0(url, "categories.csv"), sep=",", na.strings = "")
+moovies_categories <- read.csv(paste0(url, "moovies_categories.csv"), sep=",", na.strings = "")
+```
+
+### moovies
+```{r}
+head(moovies)
+```
+
+- id : Identifiant du film
+- title : Nom du film
+- release_date : Date de sortie
+- duration : Durée (en secondes)
+- directory : Réalisateur
+- note : Note attribuée au film
+- reviews : Nombre de critiques
+
+### categories
+```{r}
+head(categories)
+```
+
+### moovies_categories
+```{r}
+head(moovies_categories)
+```
+
+## Questions
+### Question 1
+**Quelle est la note moyenne des films ?**
+```{r}
+sqldf("SELECT AVG(note) AS Note_Moyenne FROM moovies")
+```
+
+### Question 2
+**Quelle est la durée moyenne des films dont les réalisateurs sont : Christopher Nolan et Clint Eastwood**
+```{r}
+sqldf("SELECT directory AS Réalisateur, AVG(duration) AS Durée_Moyenne 
+      FROM moovies
+      GROUP BY directory
+      HAVING directory IN ('Christopher Nolan','Clint Eastwood')")
+```
+
+### Question 3
+**Combien de critiques ont reçu les films dont la sortie a eu lieu entre le 1 Janvier 2010 et le 1 Janvier 2015**
+
+```{r}
+sqldf("SELECT title AS Nom_de_film, 
+      release_date AS Date_de_sortie, 
+      reviews AS Nombre_de_critiques 
+      FROM moovies
+      WHERE release_date BETWEEN '2010-01-01' AND '2015-01-01'
+      ORDER BY release_date ASC")
+```
+
+
+### Question 4
+**Transformer la colonne duration, actuellement en secondes, en minutes.**
+```{r}
+sqldf("SELECT title AS Nom_de_film, 
+       duration/60 AS Durée_min
+       FROM moovies
+       ORDER BY Durée_min DESC
+       ")
+```
+
+### Question 5
+**Quelle est la catégorie de film la plus représentée ? (Afficher le nom de la catégorie et son occurence)**
+```{r}
+sqldf("SELECT name AS Catégorie, COUNT(category_id) AS Nombre_de_films FROM categories 
+      INNER JOIN moovies_categories
+      ON categories.id = moovies_categories.category_id 
+      GROUP BY categories.name
+      ORDER BY COUNT(category_id) DESC
+      LIMIT 1")
+```
+
+### Question 6
+**Quelles sont les catégories de film que le réalisateur Clint Eastwood produit ?**
+```{r}
+sqldf("SELECT moovies.title AS Film, categories.name AS Catégorie
+      FROM moovies
+      INNER JOIN moovies_categories
+      ON moovies.id = moovies_categories.moovie_id
+      INNER JOIN categories
+      ON moovies_categories.category_id= categories.id
+      WHERE Directory='Clint Eastwood'")
+```
+### Question 7
+**Quelle est la catégorie qui possède la meilleure moyenne ?**
+
+```{r}
+sqldf("SELECT categories.name AS Catégorie, AVG(note) AS Note_Moyenne_Films
+      FROM moovies
+      INNER JOIN moovies_categories
+      ON moovies.id = moovies_categories.moovie_id
+      INNER JOIN categories
+      ON moovies_categories.category_id = categories.id
+      GROUP BY categories.id
+      ORDER BY AVG(note) DESC
+      LIMIT 1")
+```
+
